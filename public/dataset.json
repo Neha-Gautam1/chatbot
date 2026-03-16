@@ -1,0 +1,135 @@
+{
+  "patients": [
+    {
+      "patient_id": "PAT001",
+      "age": 62,
+      "gender": "Male",
+      "diagnosed_chronic_conditions": ["Hypertension"],
+      "medication_history": ["Amlodipine 5mg"],
+      "lifestyle_factors": {
+        "smoker": "No",
+        "activity_level": "Sedentary"
+      }
+    },
+    {
+      "patient_id": "PAT002",
+      "age": 55,
+      "gender": "Female",
+      "diagnosed_chronic_conditions": ["Diabetes Type 2", "Anemia"],
+      "medication_history": ["Metformin 500mg", "Iron supplement"],
+      "lifestyle_factors": {
+        "smoker": "No",
+        "activity_level": "Moderate"
+      }
+    },
+    {
+      "patient_id": "PAT003",
+      "age": 35,
+      "gender": "Male",
+      "diagnosed_chronic_conditions": ["Asthma"],
+      "medication_history": ["Albuterol Inhaler"],
+      "lifestyle_factors": {
+        "smoker": "Yes",
+        "activity_level": "Active"
+      }
+    }
+  ],
+  "medical_events": [
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-16T08:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Pressure", "systolic": 138, "diastolic": 85 }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-16T08:05:00Z",
+      "event_type": "Medication_Taken",
+      "event_data": { "medication": "Amlodipine 5mg", "status": "Taken_On_Time" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-17T08:10:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Pressure", "systolic": 135, "diastolic": 86 }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-17T08:15:00Z",
+      "event_type": "Medication_Taken",
+      "event_data": { "medication": "Amlodipine 5mg", "status": "Taken_On_Time" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-18T20:00:00Z",
+      "event_type": "Symptom_Log",
+      "event_data": { "symptom": "Headache", "severity": "Mild" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-19T08:20:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Pressure", "systolic": 145, "diastolic": 92 }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-19T08:25:00Z",
+      "event_type": "Medication_Taken",
+      "event_data": { "medication": "Amlodipine 5mg", "status": "Skipped" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-20T08:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Pressure", "systolic": 155, "diastolic": 95 }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-20T08:05:00Z",
+      "event_type": "Medication_Taken",
+      "event_data": { "medication": "Amlodipine 5mg", "status": "Skipped" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T09:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Pressure", "systolic": 158, "diastolic": 98 }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T09:05:00Z",
+      "event_type": "Symptom_Log",
+      "event_data": { "symptom": "Dizziness", "severity": "Moderate" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-20T10:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Sugar", "value": 110, "unit": "mg/dL" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T10:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Blood_Sugar", "value": 115, "unit": "mg/dL" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T11:00:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "Hemoglobin", "value": 14.5, "unit": "g/dL" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T11:05:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "WBC", "value": 6.5, "unit": "x10^9/L" }
+    },
+    {
+      "patient_id": "PAT001",
+      "timestamp": "2025-06-21T11:10:00Z",
+      "event_type": "Metric_Measurement",
+      "event_data": { "metric": "RBC", "value": 4.8, "unit": "x10^12/L" }
+    }
+  ]
+} 
