@@ -1,605 +1,177 @@
-"use client"; // <--- THIS IS THE FIX
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Mic,
-  Bot,
-  User,
-  Send,
-  X,
-  MessageSquarePlus,
-  Download,
-  AlertTriangle,
-  ListChecks,
-  Pill,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import Header from "@/components/Header";
-import { toast } from "sonner";
-import jsPDF from "jspdf";
+import { Input } from "@/components/ui/input";
+import { Send, Loader2 } from "lucide-react";
 
-// SpeechRecognition type definitions
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionResult;
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-}
-interface SpeechRecognitionResult {
-  [index: number]: SpeechRecognitionAlternative;
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-}
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onend: (() => void) | null;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  start(): void;
-  stop(): void;
-}
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-  error: string;
-}
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-interface CustomWindow extends Window {
-  SpeechRecognition: {
-    new (): SpeechRecognition;
-  };
-  webkitSpeechRecognition: {
-    new (): SpeechRecognition;
-  };
-}
-declare const window: CustomWindow;
-
-// =================================================================================
-// HELPER COMPONENTS & DATA
-// =================================================================================
-
-const LANGUAGES = [
-  { code: "en-US", label: "English" },
-  { code: "hi-IN", label: "Hindi" },
-  { code: "mr-IN", label: "Marathi" },
-  { code: "gu-IN", label: "Gujarati" },
-  { code: "ta-IN", label: "Tamil" },
-  { code: "te-IN", label: "Telugu" },
+const QUICK_REPLIES = [
+  { emoji: "🤒", text: "I have fever" },
+  { emoji: "😩", text: "I have headache" },
+  { emoji: "😷", text: "COVID symptoms" },
+  { emoji: "💊", text: "Medicine info" }
 ];
 
-interface Message {
-  role: "user" | "doctor";
-  content: string;
-}
-
-const GridBackground = () => (
-  <div className="absolute inset-0 -z-10 h-full w-full bg-slate-50 dark:bg-slate-950">
-    <div className="absolute bottom-0 left-0 right-0 top-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_36px] opacity-50"></div>
-  </div>
-);
-
-const SonarMicButton = ({
-  isRecording,
-  onClick,
-  disabled,
-}: {
-  isRecording: boolean;
-  onClick: () => void;
-  disabled: boolean;
-}) => (
-  <div className="relative">
-    <Button
-      size="icon"
-      variant="ghost"
-      onClick={onClick}
-      className={cn(
-        "w-16 h-16 rounded-full flex-shrink-0 transition-all duration-300",
-        isRecording
-          ? "bg-red-500/20 text-red-500"
-          : "bg-primary/10 text-primary"
-      )}
-      disabled={disabled}
-    >
-      <Mic className="w-8 h-8" />
-    </Button>
-    {isRecording && (
-      <>
-        <motion.div
-          className="absolute top-0 left-0 w-16 h-16 rounded-full bg-red-500/30"
-          animate={{ scale: [1, 1.8], opacity: [1, 0] }}
-          transition={{
-            repeat: Infinity,
-            duration: 1.5,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute top-0 left-0 w-16 h-16 rounded-full bg-red-500/30"
-          animate={{ scale: [1, 2.5], opacity: [1, 0] }}
-          transition={{
-            repeat: Infinity,
-            duration: 1.5,
-            ease: "easeInOut",
-            delay: 0.5,
-          }}
-        />
-      </>
-    )}
-  </div>
-);
-
-const ChatMessage = ({ msg }: { msg: Message }) => {
-    const isUser = msg.role === 'user';
-    const formatAnalysis = (text: string) => {
-      return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br />');
-    };
-  
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className={cn("flex items-start gap-3", isUser ? "justify-end" : "justify-start")}
-      >
-        {!isUser && <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Bot className="w-5 h-5" /></div>}
-        <div className={cn("rounded-2xl px-4 py-3 max-w-[80%] break-words", isUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-background dark:bg-slate-800 border dark:border-slate-700 rounded-bl-none")}>
-          {isUser ? msg.content : <p className="leading-relaxed" dangerouslySetInnerHTML={{ __html: formatAnalysis(msg.content) }} />}
-        </div>
-        {isUser && <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-muted-foreground"><User className="w-5 h-5" /></div>}
-      </motion.div>
-    );
-  };
-
-// =================================================================================
-// MAIN PAGE COMPONENT
-// =================================================================================
-
-const SpeechAnalysisPage = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [conversation, setConversation] = useState<Message[]>([
-    {
-      role: "doctor",
-      content:
-        "Hello! I am your AI Health Assistant. Please describe your symptoms in your preferred language.",
-    },
+export default function MedicareChatbot() {
+  const [messages, setMessages] = useState([
+    { 
+      sender: "bot", 
+      text: "Hi 👋 I'm your Medicare assistant. I'm here to help you with common health concerns and provide guidance. How can I help you today?",
+      timestamp: new Date()
+    }
   ]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [language, setLanguage] = useState("en-US");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const wasRecordingRef = useRef(false);
-  const [prescription, setPrescription] = useState("");
-  const [isPrescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Your browser does not support speech recognition.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = language;
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      setTranscript(event.results[0][0].transcript);
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      toast.error(`Speech recognition error: ${event.error}`);
-      setIsRecording(false);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, [language]);
-
-  const handleSend = useCallback(
-    async (userMessage: string) => {
-      if (!userMessage.trim() || isAnalyzing) return;
-
-      setIsAnalyzing(true);
-      setInputValue("");
-
-      const newConversation = [...conversation, { role: "user" as const, content: userMessage }];
-      setConversation(newConversation);
-
-      try {
-        const response = await fetch("/api/analyze-symptoms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversation: newConversation,
-            language,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to get analysis from the server.");
-        }
-
-        const data = await response.json();
-        setConversation((prev) => [
-          ...prev,
-          { role: "doctor", content: data.analysis },
-        ]);
-      } catch (error) {
-        toast.error("There was an error analyzing your symptoms.");
-        setConversation((prev) => [
-          ...prev,
-          {
-            role: "doctor",
-            content:
-              "I'm sorry, I encountered an error. Please try again.",
-          },
-        ]);
-      } finally {
-        setIsAnalyzing(false);
-      }
-    },
-    [conversation, isAnalyzing, language]
-  );
-
-  useEffect(() => {
-    if (transcript.trim() && wasRecordingRef.current) {
-      handleSend(transcript);
-      setTranscript("");
-      wasRecordingRef.current = false;
-    }
-  }, [transcript, handleSend]);
-
-  const handleMicClick = () => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-    } else {
-      setTranscript("");
-      wasRecordingRef.current = true;
-      try {
-        recognitionRef.current?.start();
-        setIsRecording(true);
-      } catch (error) {
-        console.error("Speech recognition start error:", error);
-        toast.error(
-          "Could not start recording. Please check microphone permissions."
-        );
-      }
-    }
-  };
-
-  const generatePrescription = async () => {
-    setPrescription("Generating prescription...");
-    try {
-      const response = await fetch("/api/analyze-symptoms/prescription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation, language }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to generate prescription.");
-      }
-      const data = await response.json();
-      setPrescription(data.prescription);
-    } catch (e) {
-      toast.error("Failed to generate prescription. Please try again.");
-      setPrescription(
-        "Could not generate a prescription at this time. Please ensure the conversation is detailed enough."
-      );
-    }
-  };
-
-  const handleNewChat = () => {
-    setConversation([
-      {
-        role: "doctor",
-        content:
-          "Hello! I am your AI Health Assistant. Please describe your symptoms in your preferred language.",
-      },
-    ]);
-    setPrescriptionModalOpen(false);
-    setInputValue("");
-    if (isRecording) {
-      recognitionRef.current?.stop();
-    }
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation]);
+    scrollToBottom();
+  }, [messages]);
 
-  const analysisSummary = useCallback(() => {
-    const lastDoctorMsg = conversation
-      .slice()
-      .reverse()
-      .find(
-        (msg) =>
-          msg.role === "doctor" && msg.content.includes("Possible Conditions")
-      );
-    if (!lastDoctorMsg) return { conditions: [], flags: [] };
+  const handleSend = (text = input) => {
+    if (!text.trim()) return;
 
-    const conditionsMatch = lastDoctorMsg.content.match(
-      /Possible Conditions:(.*?)(?=Recommendations:|Red Flags:|$)/s
-    );
-    const flagsMatch = lastDoctorMsg.content.match(
-      /Red Flags:(.*?)(?=Next Steps:|Disclaimer:|$)/s
-    );
+    const userMessage = { 
+      sender: "user", 
+      text: text,
+      timestamp: new Date()
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
 
-    const conditions = conditionsMatch
-      ? conditionsMatch[1]
-          .trim()
-          .split("\n")
-          .map((c) => c.replace(/^-/, "").replace(/\*/g, "").trim())
-          .filter(Boolean)
-      : [];
-    const flags = flagsMatch
-      ? flagsMatch[1]
-          .trim()
-          .split("\n")
-          .map((f) => f.replace(/^-/, "").replace(/\*/g, "").trim())
-          .filter(Boolean)
-      : [];
+    // Simulate bot response delay
+    setTimeout(() => {
+      const botReply = {
+        sender: "bot",
+        text: getBotReply(text),
+        timestamp: new Date()
+      };
+      setMessages((prev) => [...prev, botReply]);
+      setIsLoading(false);
+    }, 600);
+  };
 
-    return { conditions, flags };
-  }, [conversation]);
+  const getBotReply = (msg) => {
+    msg = msg.toLowerCase();
+
+    if (msg.includes("fever")) 
+      return "🌡️ For fever:\n• Stay hydrated - drink plenty of water\n• Get adequate rest\n• Take paracetamol as directed\n• Monitor your temperature\n\nIf fever persists beyond 3 days or goes above 103°F, consult a doctor immediately.";
+    
+    if (msg.includes("headache")) 
+      return "🤕 For headache relief:\n• Drink plenty of water (dehydration is common)\n• Rest in a dark, quiet room\n• Gentle neck stretches\n• Consider over-the-counter pain relief\n\nIf severe or persistent, seek medical attention.";
+    
+    if (msg.includes("covid") || msg.includes("coronavirus")) 
+      return "😷 For COVID-19:\n• Get tested immediately if symptomatic\n• Isolate for at least 5 days\n• Monitor symptoms closely\n• Stay hydrated\n• Contact your healthcare provider\n• Seek emergency care if experiencing severe symptoms\n\nStay safe and follow local guidelines.";
+    
+    if (msg.includes("medicine")) 
+      return "💊 Please remember:\n• Always take medicine as prescribed\n• Don't skip doses\n• Store medicines properly\n• Check expiry dates\n• Report any side effects to your doctor\n\nFor specific medicine advice, consult your healthcare provider.";
+
+    return "I'm here to help! Please tell me about your symptoms or health concerns. I can assist with fever, headache, COVID symptoms, and general medicine information.";
+  };
+
+  const formatTime = (date) => {
+    return new Date(date).toLocaleTimeString("en-US", { 
+      hour: "2-digit", 
+      minute: "2-digit" 
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground">
-      <GridBackground />
-      <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Control Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="lg:col-span-1 space-y-6"
-          >
-            <Card className="bg-background/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>Session Controls</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleNewChat}
-                >
-                  <MessageSquarePlus className="w-4 h-4 mr-2" /> New Chat
-                </Button>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-            <Card className="bg-background/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>AI Actions</CardTitle>
-                <CardDescription>
-                  Perform actions based on the conversation.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    setPrescriptionModalOpen(true);
-                    generatePrescription();
-                  }}
-                  disabled={isAnalyzing || conversation.length < 2}
-                >
-                  <Pill className="w-4 h-4 mr-2" /> Generate Prescription
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="bg-background/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>Analysis Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <ListChecks className="w-4 h-4 text-blue-500" /> Possible
-                    Conditions
-                  </h4>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground">
-                    {analysisSummary().conditions.length > 0 ? (
-                      analysisSummary().conditions.map((c, i) => (
-                        <li key={i}>{c}</li>
-                      ))
-                    ) : (
-                      <li>No conditions identified yet.</li>
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-500" /> Red Flags
-                  </h4>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground">
-                    {analysisSummary().flags.length > 0 ? (
-                      analysisSummary().flags.map((f, i) => <li key={i}>{f}</li>)
-                    ) : (
-                      <li>No red flags detected.</li>
-                    )}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Right Column: Chat Interface */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-2"
-          >
-            <Card className="h-[80vh] flex flex-col bg-background/80 backdrop-blur-sm shadow-xl">
-              <CardContent className="flex-1 p-4 md:p-6 overflow-y-auto">
-                <div className="space-y-6">
-                  {conversation.map((msg, idx) => (
-                    <ChatMessage key={idx} msg={msg} />
-                  ))}
-                  {isAnalyzing && (
-                    <div className="flex items-start gap-3 justify-start">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                        <Bot className="w-5 h-5" />
-                      </div>
-                      <div className="bg-background dark:bg-slate-800 border dark:border-slate-700 rounded-2xl rounded-bl-none px-4 py-3 flex items-center gap-2">
-                        <motion.div
-                          className="w-2 h-2 bg-muted-foreground rounded-full"
-                          animate={{ y: [0, -4, 0] }}
-                          transition={{
-                            duration: 0.8,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                          }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 bg-muted-foreground rounded-full"
-                          animate={{ y: [0, -4, 0] }}
-                          transition={{
-                            duration: 0.8,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 0.1,
-                          }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 bg-muted-foreground rounded-full"
-                          animate={{ y: [0, -4, 0] }}
-                          transition={{
-                            duration: 0.8,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 0.2,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-              </CardContent>
-              <div className="p-4 md:p-6 border-t dark:border-slate-800 flex flex-col items-center gap-4">
-                <SonarMicButton
-                  isRecording={isRecording}
-                  onClick={handleMicClick}
-                  disabled={isAnalyzing}
-                />
-                <div className="w-full flex items-center gap-2 p-1 rounded-full border bg-background focus-within:ring-2 focus-within:ring-ring">
-                  <input
-                    type="text"
-                    className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground px-4 py-2"
-                    placeholder="Or type your message here..."
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSend(inputValue);
-                      }
-                    }}
-                    disabled={isAnalyzing}
-                  />
-                  <Button
-                    variant="default"
-                    size="icon"
-                    onClick={() => handleSend(inputValue)}
-                    disabled={!inputValue.trim() || isAnalyzing}
-                    className="w-10 h-10 rounded-full flex-shrink-0"
-                  >
-                    <Send className="w-5 h-5" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
+    <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 shadow-lg">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold">🏥 Medicare-AI</h1>
+          <p className="text-blue-100 text-sm mt-1">Your personal health companion</p>
         </div>
-      </main>
+      </div>
 
-      {/* Prescription Modal Dialog */}
-      <Dialog
-        open={isPrescriptionModalOpen}
-        onOpenChange={setPrescriptionModalOpen}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>AI Generated Prescription</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto p-1">
-            <pre className="whitespace-pre-wrap font-sans text-left text-sm bg-muted p-4 rounded-lg">
-              {prescription}
-            </pre>
-          </div>
-          <Button
-            className="mt-4 w-full"
-            onClick={() => {
-              const doc = new jsPDF();
-              doc.setFontSize(12);
-              doc.text(prescription, 10, 20, { maxWidth: 180 });
-              doc.save("ai-prescription.pdf");
-            }}
-            disabled={!prescription || prescription === "Generating prescription..."}
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl mx-auto w-full">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}
           >
-            <Download className="w-4 h-4 mr-2" /> Download PDF
+            <div
+              className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
+                msg.sender === "user"
+                  ? "bg-blue-600 text-white rounded-br-none"
+                  : "bg-white text-slate-800 rounded-bl-none border border-slate-200"
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+              <p className={`text-xs mt-2 ${msg.sender === "user" ? "text-blue-100" : "text-slate-500"}`}>
+                {formatTime(msg.timestamp)}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-white text-slate-800 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm border border-slate-200">
+              <div className="flex gap-2 items-center">
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Replies */}
+      {messages.length === 1 && !isLoading && (
+        <div className="px-4 py-4 max-w-4xl mx-auto w-full">
+          <p className="text-xs text-slate-600 mb-2 font-medium">Quick replies:</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {QUICK_REPLIES.map((reply, idx) => (
+              <Button
+                key={idx}
+                onClick={() => handleSend(reply.text)}
+                variant="outline"
+                className="text-sm text-gray-700 h-10 border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+              >
+                <span>{reply.emoji}</span>
+                <span className="ml-1">{reply.text}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input Box */}
+      <div className="p-4 border-t bg-white shadow-lg">
+        <div className="max-w-4xl mx-auto flex gap-2">
+          <Input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Describe your symptoms or ask a health question..."
+            className="flex-1 border-slate-300 rounded-full px-4"
+            disabled={isLoading}
+          />
+          <Button
+            onClick={() => handleSend()}
+            disabled={isLoading || !input.trim()}
+            className="bg-blue-600 hover:bg-blue-700 rounded-full px-4 py-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default SpeechAnalysisPage;
+}
